@@ -18,9 +18,12 @@ class Transition:
     def draw(self, screen: pygame.Surface, fromPos, toStateCpy: State):
         toPos = toStateCpy.position.center
         slope = np.subtract(fromPos, toPos)
-        perp = 10*([-slope[1], slope[0]] / np.linalg.norm([-slope[1], slope[0]]))
-        
+        norm = np.linalg.norm(np.subtract(fromPos, toPos))
+        slope = slope/norm
+        perp = [-10*slope[1], 10*slope[0]]
+        arrowPos = fromPos-((norm/2)*slope)+perp
         pygame.draw.line(screen, "snow", np.add(fromPos, perp), np.add(toStateCpy.position.center, perp), width=4)
+        pygame.draw.polygon(screen, "snow", [arrowPos, arrowPos+(10*slope)-perp, arrowPos+(10*slope)+perp])
 
 pygame.init()
 screen = pygame.display.set_mode((1280, 720))
