@@ -1,6 +1,8 @@
 import pygame
 from random import randint
 import numpy as np
+import tkinter as tk
+import os
 
 class State:
     def __init__(self, name: str, position: list[int]):
@@ -13,7 +15,6 @@ class State:
         text = font.render(self.name, True, "snow")
         text_rect = text.get_rect(center=self.position.center)   
         screen.blit(text, text_rect)
-
 
 class Transition:
     def __init__(self, toState: int):
@@ -30,21 +31,26 @@ class Transition:
         pygame.draw.line(screen, "steelblue1" if self.selected else "snow", np.add(fromPos, perp), np.add(toStateCpy.position.center, perp), width=4)
         self.clickBox = pygame.draw.polygon(screen, "steelblue1" if self.selected else "snow", [arrowPos, arrowPos+(10*slope)-perp, arrowPos+(10*slope)+perp])
 
+root = tk.Tk()
+
 pygame.init()
-screen = pygame.display.set_mode((1280, 720))
+screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
 font = pygame.font.SysFont(None, 24)
+
 running = True
 
-def draw(objs, selected, selected_2):
+def draw(objs, hovered, hovered_2, selected):
     for drawObj in objs:
         for transition in drawObj.transitions:
             transition.draw(screen, drawObj.position.center, objs[transition.toState])
     for drawObj in objs:
         drawObj.draw(screen, font)
+    if (hovered != None):
+        pygame.draw.rect(screen, "steelblue1", objs[hovered].position, width=2, border_radius=5)
+    if (hovered_2 != None):
+        pygame.draw.rect(screen, "coral", objs[hovered_2].position, width=2, border_radius=5)
     if (selected != None):
-        pygame.draw.rect(screen, "steelblue1", objs[selected].position, width=2, border_radius=5)
-    if (selected_2 != None):
-        pygame.draw.rect(screen, "coral", objs[selected_2].position, width=2, border_radius=5)
+        pygame.draw.rect(screen, "snow", objs[selected].position, width=2, border_radius=5)
 
 def selection(objs):
     mousepos = pygame.mouse.get_pos()
@@ -61,19 +67,26 @@ def tr_selection(objs):
 
 states = []
 selected = None
-selected_2 = None
+hovered = None
+hovered_2 = None
 selected_tr = None
 mode = 0
+snapping = False
 
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            if mode == 2 and selected_2 != None and selected != selected_2:
-                states[selected].transitions.append(Transition(selected_2))
-            if mode == 0 and selected != None:
-                mode = 1
+            if mode == 2 and hovered_2 != None and hovered != hovered_2:
+                for transition in states[hovered].transitions:
+                    if transition.toState == hovered_2: break
+                else:
+                    states[hovered].transitions.append(Transition(hovered_2))
+            if mode == 0 and hovered != None:
+                if hovered == selected:
+                    mode = 1
+                selected = hovered
             elif mode == 0:
                 if selected_tr != None:
                     states[selected_tr[0]].transitions[selected_tr[1]].selected = False
@@ -81,27 +94,33 @@ while running:
                 selected_tr = tr_selection(states)
                 if selected_tr != None:
                     states[selected_tr[0]].transitions[selected_tr[1]].selected = True
+                else:
+                    selected = None
             else:
                 mode = 0
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE and mode == 0:
                 states.append(State("Testing", pygame.mouse.get_pos()))
-            elif event.key == pygame.K_g and selected != None:
+            elif event.key == pygame.K_g and hovered != None:
                 mode = 1
-            elif event.key == pygame.K_w and selected != None:
+            elif event.key == pygame.K_w and hovered != None:
                 mode = 2
             elif event.key == pygame.K_RETURN:
                 mode = 0
+            elif event.key == pygame.K_s:
+                snapping = not snapping
     
     screen.fill(pygame.Color(38,70,83))
     if mode == 0:
-        selected = selection(states)
-        selected_2 = None
+        hovered = selection(states)
+        hovered_2 = None
     if mode == 1:
-        states[selected].position.center = pygame.mouse.get_pos()
+        mousePos = pygame.mouse.get_pos()
+        states[hovered].position.center = mousePos if not snapping else [mousePos[0]-(mousePos[0]%20), mousePos[1]-(mousePos[1]%20)]
     if mode == 2:
-        selected_2 = selection(states)
-        pygame.draw.line(screen, "snow3", states[selected].position.center, pygame.mouse.get_pos(), width=4)
-    draw(states, selected, selected_2)
+        hovered_2 = selection(states)
+        pygame.draw.line(screen, "snow3", states[hovered].position.center, pygame.mouse.get_pos(), width=4)
+    draw(states, hovered, hovered_2, selected)
     pygame.display.flip()
+    root.update()
 pygame.quit()
